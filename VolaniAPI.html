@@ -1,0 +1,208 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+  <head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>VolaniAPI</title>
+
+
+  
+  </head>
+  <body>
+    <h2>Vyber uživatele</h2>
+  <select id="peopleSelect">
+    <option value="">-- vyber uživatele --</option>
+  </select>
+
+    <h2>Seznam drinků</h2>
+    <ul id="drinks"></ul>
+
+    <br>
+  <button id="sendBtn">Odeslat</button>
+
+  </body>
+
+    <script>
+        addEventListener('DOMContentLoaded', async () =>{ 
+        //const url = "http://lmpss3.dev.spsejecna.net/procedure.php";
+        const url = "https://crm.skch.cz/ajax0/procedure.php";
+
+        async function getPeopleList(apiUrl) {
+            const res = await fetch(`${apiUrl}?cmd=getPeopleList`, { 
+                method: 'GET', 
+                credentials: 'include' ,
+                headers: {
+                'Authorization': AUTH_HEADER
+                }
+            });
+
+            if (!res.ok) throw new Error(`getTypesList HTTP ${res.status}`);
+            return await res.json();
+        }
+
+        /*async function getTypesList(apiUrl) {
+            const res = await fetch(`${apiUrl}?cmd=getTypesList`, { 
+                method: 'GET', 
+                credentials: 'include' 
+            });
+
+            if (!res.ok) throw new Error(`getTypesList HTTP ${res.status}`);
+            return await res.json();
+        }*/
+
+
+        function renderPeople(listEl, people) {
+
+            //listEl.option.value = "--vyber uzivatele--"
+
+            Object.values(people).forEach(p => {
+                const option = document.createElement('option');
+                option.value = p.ID;
+                option.textContent = p.name;
+                listEl.appendChild(option);
+            });
+
+        }
+
+        function renderTypes(container, types) {
+            Object.values(types).forEach(d => {
+                const label = document.createElement('label');
+                label.textContent = d.typ + ' ';
+
+                const input = document.createElement('input');
+                input.type = 'number';
+                input.min = 0;
+                input.value = 0;
+
+                container.appendChild(label);
+                container.appendChild(input);
+
+                container.appendChild(document.createElement("br"));
+                container.appendChild(document.createElement("br"));
+
+            });
+        }
+
+        async function saveDrinks() {
+            try {
+                const userId = document.getElementById('peopleSelect').value;
+
+                if (!userId) {
+                    alert('Vyber uživatele.');
+                    return;
+                }
+
+                const drinkInputs = document.querySelectorAll('#drinks input');
+                const drinkLabels = document.querySelectorAll('#drinks label');
+                const drinks = [];
+
+                drinkInputs.forEach(input => {
+                        const count = parseInt(input.value);
+
+                    if (count > 0) {
+                        drinks.push({
+                            type: null,//parseInt(drinkLabels.type),//parseInt(input.typ), //parseInt(input.typ, 10),
+                            value: count
+                        });
+                    }
+                    
+                });
+
+                if (drinks.length === 0) {
+                    alert('Zadej jeden nápoj.');
+                    return;
+                }
+
+                /*const payload = {
+                    user: parseInt(option.value),
+                    drinks: Object.keys(values).map(drink => ({
+                        type: drink,
+                        value: values[drink]
+                    }))
+                }*/
+
+                const data = {
+                    user: parseInt(userId),
+                    drinks: drinks
+                };
+
+                console.log("Odesílaný JSON:", JSON.stringify(data));
+
+                const res = await fetch(`${url}?cmd=saveDrinks`, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                    'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                if (!res.ok) {
+                    throw new Error(`saveDrinks HTTP ${res.status}`);
+                }
+
+                const result = await res.json();
+                console.log("Odpověď serveru:", result);
+
+                alert('Data byla odeslána.');
+            } catch (err) {
+                console.error('Chyba při odesílání:', err);
+                alert('Nepodařilo se odeslat data.');
+            }
+        }
+
+        let sendBtn = document.getElementById("sendBtn")
+        sendBtn.addEventListener("click", function(){
+            saveDrinks();
+        })
+
+
+        function make_base_auth(user, password) {
+                return "Basic " + btoa(user + ":" + password);
+        }
+
+        const username = "coffe";
+        const password = "kafe";
+        const AUTH_HEADER = make_base_auth(username, password);
+
+        async function getTypesList(url) {
+            const res = await fetch(`${url}?cmd=getTypesList`, {
+                method: 'GET',
+                credentials: 'include',
+                headers: {
+                'Authorization': AUTH_HEADER
+                }
+            });
+            if (!res.ok) throw new Error(`getTypesList HTTP ${res.status}`);
+            return await res.json();
+        }
+        const res = await fetch(url, {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': AUTH_HEADER
+            },
+            credentials: 'include',
+            //body: JSON.stringify(data)
+        })
+
+        try {
+            let drinks = await getTypesList(url)
+            let peoples = await getPeopleList(url)
+
+            let listpeople = document.getElementById('peopleSelect')
+            let listdrinks = document.getElementById('drinks')
+
+            renderPeople(listpeople, peoples)
+            renderTypes(listdrinks, drinks) 
+        } catch (err) {
+            console.error("Chyba při načítání typů:", err);
+            const output = document.querySelector('#output1');
+            if (output) output.textContent = 'Nepodařilo se načíst typy.';
+        }
+
+
+    });
+    </script>
+
+</html>
