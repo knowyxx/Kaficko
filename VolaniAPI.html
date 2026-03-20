@@ -73,6 +73,8 @@
                 input.min = 0;
                 input.value = 0;
 
+                input.dataset.type = d.ID;
+
                 container.appendChild(label);
                 container.appendChild(input);
 
@@ -83,6 +85,8 @@
         }
 
         async function saveDrinks() {
+            let data = null;
+
             try {
                 const userId = document.getElementById('peopleSelect').value;
 
@@ -92,19 +96,17 @@
                 }
 
                 const drinkInputs = document.querySelectorAll('#drinks input');
-                const drinkLabels = document.querySelectorAll('#drinks label');
                 const drinks = [];
 
                 drinkInputs.forEach(input => {
-                        const count = parseInt(input.value);
+                    const count = parseInt(input.value, 10);
 
                     if (count > 0) {
                         drinks.push({
-                            type: null,//parseInt(drinkLabels.type),//parseInt(input.typ), //parseInt(input.typ, 10),
+                            type: parseInt(input.dataset.type, 10),
                             value: count
                         });
                     }
-                    
                 });
 
                 if (drinks.length === 0) {
@@ -112,16 +114,8 @@
                     return;
                 }
 
-                /*const payload = {
-                    user: parseInt(option.value),
-                    drinks: Object.keys(values).map(drink => ({
-                        type: drink,
-                        value: values[drink]
-                    }))
-                }*/
-
-                const data = {
-                    user: parseInt(userId),
+                data = {
+                    user: parseInt(userId, 10),
                     drinks: drinks
                 };
 
@@ -131,7 +125,8 @@
                     method: 'POST',
                     credentials: 'include',
                     headers: {
-                    'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'Authorization': AUTH_HEADER
                     },
                     body: JSON.stringify(data)
                 });
@@ -144,9 +139,55 @@
                 console.log("Odpověď serveru:", result);
 
                 alert('Data byla odeslána.');
+
             } catch (err) {
                 console.error('Chyba při odesílání:', err);
-                alert('Nepodařilo se odeslat data.');
+
+                if (data) {
+                    let pending = JSON.parse(localStorage.getItem("pendingDrinks")) || [];
+                    pending.push(data);
+                    localStorage.setItem("pendingDrinks", JSON.stringify(pending));
+                }
+
+                alert('Nepodařilo se odeslat data. Uloženo do localStorage.');
+            }
+        }
+
+        async function resendStoredData() {
+            let pending = JSON.parse(localStorage.getItem("pendingDrinks")) || [];
+
+            if (pending.length === 0) return;
+
+            console.log("Zkouším odeslat uložená data...", pending);
+
+            let success = [];
+
+            for (let data of pending) {
+                try {
+                    const res = await fetch(`${url}?cmd=saveDrinks`, {
+                        method: 'POST',
+                        credentials: 'include',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(data)
+                    });
+
+                    if (res.ok) {
+                        success.push(data);
+                    }
+                } catch (err) {
+                    console.log("Stále offline...");
+                    return;
+                }
+            }
+
+            // 🧹 odstranit odeslané
+            let remaining = pending.filter(d => !success.includes(d));
+            localStorage.setItem("pendingDrinks", JSON.stringify(remaining));
+
+            if (success.length > 0) {
+                alert("Uložená data byla odeslána.");
             }
         }
 
@@ -195,6 +236,7 @@
 
             renderPeople(listpeople, peoples)
             renderTypes(listdrinks, drinks) 
+            resendStoredData();
         } catch (err) {
             console.error("Chyba při načítání typů:", err);
             const output = document.querySelector('#output1');
